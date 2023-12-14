@@ -1,0 +1,24 @@
+# Daniel Micallef Project 2. Server.
+# TPRG2131 Fall 2023
+# Produced for Phil J (Fall 2023)
+# December 14th, 2023
+
+import json
+import PySimpleGUI as sg
+
+def process_json_data(json_data, server_gui):
+
+    try:
+        data = json.loads(json_data)
+
+        server_gui.window["info_text"].print(f"Iteration {data['iteration_count']}: Core Temperature: {data['core_temperature']}°C")
+        server_gui.window["info_text"].print(f"Core Voltage: {data['core_voltage']}V")
+        server_gui.window["info_text"].print(f"GPU Temperature: {data['gpu_temperature']}°C")
+        server_gui.window["info_text"].print(f"CPU Temperature: {data['cpu_temperature']}°C")
+        server_gui.window["info_text"].print(f"CPU Voltage: {data['cpu_voltage']}V")
+        server_gui.window["info_text"].print(f"Memory Temperature: {data['memory_temperature']}°C")
+
+        server_gui.window["led_label"].update("LED: ✔")
+        time.sleep(1)  
+
+        server_gui.window["led_label"].update("LED: ❌")
