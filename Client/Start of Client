@@ -1,0 +1,43 @@
+# Daniel Micallef Project 2. Client.
+# TPRG2131 Fall 2023
+# Produced for Phil J (Fall 2023)
+# December 14th, 2023
+
+import json
+import time
+import os
+import PySimpleGUI as sg
+
+class ClientGUI:
+    def __init__(self):
+        self.connection_established = False
+        self.window = create_gui()
+
+def create_gui():
+    sg.theme('Default1')
+
+    layout = [
+        [sg.Text("Connection Status: Not Connected", key="status_label")],
+        [sg.Text("LED: ❌", key="led_label")],
+        [sg.Button("Exit")]
+    ]
+
+    return sg.Window("Client GUI", layout, finalize=True)
+
+def update_gui(client_gui):
+    flash_led = False
+
+    while True:
+        event, values = client_gui.window.read(timeout=1000)
+        if event == sg.WIN_CLOSED or event == "Exit":
+            break
+
+        client_gui.window["led_label"].update("LED: ✔" if flash_led else "LED: ❌")
+        flash_led = not flash_led
+
+        if client_gui.connection_established:
+            client_gui.window["status_label"].update("Connection Status: Connected")
+        else:
+            client_gui.window["status_label"].update("Connection Status: Not Connected")
+
+        client_gui.window.refresh()
