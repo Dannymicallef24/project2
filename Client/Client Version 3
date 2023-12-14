@@ -1,0 +1,101 @@
+# Daniel Micallef Project 2. Client.
+# TPRG2131 Fall 2023
+# Produced for Phil J (Fall 2023)
+# December 14th, 2023
+
+import json
+import time
+import socket
+import platform
+import os
+import threading
+import PySimpleGUI as sg
+
+class ClientGUI:
+    def __init__(self):
+        self.connection_established = False
+        self.window = create_gui()
+
+def create_gui():
+    sg.theme('Default1')
+
+    layout = [
+        [sg.Text("Connection Status: Not Connected", key="status_label")],
+        [sg.Text("LED: ❌", key="led_label")],
+        [sg.Button("Exit")]
+    ]
+
+    return sg.Window("Client GUI", layout, finalize=True)
+
+def update_gui(client_gui):
+    flash_led = False
+
+    while True:
+        event, values = client_gui.window.read(timeout=1000)
+        if event == sg.WIN_CLOSED or event == "Exit":
+            break
+
+        client_gui.window["led_label"].update("LED: ✔" if flash_led else "LED: ❌")
+        flash_led = not flash_led
+
+        if client_gui.connection_established:
+            client_gui.window["status_label"].update("Connection Status: Connected")
+        else:
+            client_gui.window["status_label"].update("Connection Status: Not Connected")
+
+        client_gui.window.refresh()
+
+def get_core_temperature():
+    temperature_str = os.popen('vcgencmd measure_temp').readline().strip()
+    temperature = float(temperature_str.split('=')[1].split("'")[0])
+    return temperature
+
+def get_core_voltage():
+    voltage_str = os.popen('vcgencmd measure_volts core').readline().strip()
+    voltage = float(voltage_str.split('=')[1].split('V')[0])
+    return voltage
+
+def get_gpu_temperature():
+    gpu_temp_str = os.popen('vcgencmd measure_temp').readline().strip()
+    gpu_temp = float(gpu_temp_str.split('=')[1].split("'")[0])
+    return gpu_temp
+
+def get_cpu_temperature():
+    cpu_temp_str = os.popen('vcgencmd measure_temp').readline().strip()
+    cpu_temp = float(cpu_temp_str.split('=')[1].split("'")[0])
+    return cpu_temp
+
+def get_memory_temperature():
+    memory_temp_str = os.popen('vcgencmd measure_temp').readline().strip()
+    memory_temp = float(memory_temp_str.split('=')[1].split("'")[0])
+    return memory_temp
+
+def collate_data(iteration_count, client_gui):
+    try:
+        core_temperature = get_core_temperature()
+        core_voltage = get_core_voltage()
+        gpu_temperature = get_gpu_temperature()
+        cpu_temperature = get_cpu_temperature()
+        memory_temperature = get_memory_temperature()
+
+        led_state = "✔" if iteration_count % 2 == 0 else "❌"
+
+        client_gui.window["led_label"].update("LED: ✔")
+        client_gui.window.refresh()  # Force refresh to immediately display the check mark
+        time.sleep(1)  # Delay for the check mark to show
+
+        client_gui.window["led_label"].update(f"LED: {led_state}")
+
+        data = {
+            "iteration_count": iteration_count,
+            "core_temperature": core_temperature,
+            "core_voltage": core_voltage,
+            "gpu_temperature": gpu_temperature,
+            "cpu_temperature": cpu_temperature,
+            "memory_temperature": memory_temperature,
+            "led_state": led_state
+        }
+        return json.dumps(data)
+    except Exception as e:
+        print(f"Error collating data: {e}")
+        return None
