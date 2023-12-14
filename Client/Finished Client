@@ -1,0 +1,154 @@
+# Daniel Micallef Project 2. Client.
+# TPRG2131 Fall 2023
+# Produced for Phil J (Fall 2023)
+# December 14th, 2023
+
+import json
+import time
+import socket
+import platform
+import os
+import threading
+import PySimpleGUI as sg
+
+class ClientGUI:
+    """Class for the client GUI."""
+    def __init__(self):
+        """Initialize the client GUI."""
+        self.connection_established = False
+        self.window = create_gui()
+
+def create_gui():
+    """Create and return the GUI window."""
+    sg.theme('Default1')
+
+    layout = [
+        [sg.Text("Connection Status: Not Connected", key="status_label")],
+        [sg.Text("LED: ❌", key="led_label")],
+        [sg.Button("Exit")]
+    ]
+
+    return sg.Window("Client GUI", layout, finalize=True)
+
+def update_gui(client_gui):
+    """Update the GUI based on the connection status and LED state."""
+    flash_led = False
+
+    while True:
+        event, values = client_gui.window.read(timeout=1000)
+        if event == sg.WIN_CLOSED or event == "Exit":
+            break
+
+        # Update LED label based on flash_led flag
+        client_gui.window["led_label"].update("LED: ✔" if flash_led else "LED: ❌")
+        flash_led = not flash_led
+
+        # Update connection status in the GUI
+        if client_gui.connection_established:
+            client_gui.window["status_label"].update("Connection Status: Connected")
+        else:
+            client_gui.window["status_label"].update("Connection Status: Not Connected")
+
+        # Force refresh to immediately display the LED state
+        client_gui.window.refresh()
+
+def get_core_temperature():
+    """Get the core temperature of the system."""
+    temperature_str = os.popen('vcgencmd measure_temp').readline().strip()
+    temperature = float(temperature_str.split('=')[1].split("'")[0])
+    return temperature
+
+def get_core_voltage():
+    """Get the core voltage of the system."""
+    voltage_str = os.popen('vcgencmd measure_volts core').readline().strip()
+    voltage = float(voltage_str.split('=')[1].split('V')[0])
+    return voltage
+
+def get_gpu_temperature():
+    """Get the GPU temperature of the system."""
+    gpu_temp_str = os.popen('vcgencmd measure_temp').readline().strip()
+    gpu_temp = float(gpu_temp_str.split('=')[1].split("'")[0])
+    return gpu_temp
+
+def get_cpu_temperature():
+    """Get the CPU temperature of the system."""
+    cpu_temp_str = os.popen('vcgencmd measure_temp').readline().strip()
+    cpu_temp = float(cpu_temp_str.split('=')[1].split("'")[0])
+    return cpu_temp
+
+def get_memory_temperature():
+    """Get the memory temperature of the system."""
+    memory_temp_str = os.popen('vcgencmd measure_temp').readline().strip()
+    memory_temp = float(memory_temp_str.split('=')[1].split("'")[0])
+    return memory_temp
+
+def collate_data(iteration_count, client_gui):
+    """Collate system data and return it as a JSON string."""
+    try:
+        core_temperature = get_core_temperature()
+        core_voltage = get_core_voltage()
+        gpu_temperature = get_gpu_temperature()
+        cpu_temperature = get_cpu_temperature()
+        memory_temperature = get_memory_temperature()
+
+        led_state = "✔" if iteration_count % 2 == 0 else "❌"
+
+        # Flash check mark for LED
+        client_gui.window["led_label"].update("LED: ✔")
+        client_gui.window.refresh()  # Force refresh to immediately display the check mark
+        time.sleep(1)  # Delay for the check mark to show
+
+        # Set LED back to '❌'
+        client_gui.window["led_label"].update(f"LED: {led_state}")
+
+        data = {
+            "iteration_count": iteration_count,
+            "core_temperature": core_temperature,
+            "core_voltage": core_voltage,
+            "gpu_temperature": gpu_temperature,
+            "cpu_temperature": cpu_temperature,
+            "memory_temperature": memory_temperature,
+            "led_state": led_state
+        }
+        return json.dumps(data)
+    except Exception as e:
+        print(f"Error collating data: {e}")
+        return None
+
+def start_client(client_gui):
+    """Start the client and send system data to the server."""
+    iteration_count = 1
+    connected = False
+    try:
+        if platform.system() != "Linux":
+            raise Exception("This program should be run on a Raspberry Pi.")
+
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
+            server_address = ('127.0.0.1', 5000)
+            client_socket.connect(server_address)
+            connected = True
+            client_gui.connection_established = True
+
+            while True:
+                data = collate_data(iteration_count, client_gui)
+                if data is not None:
+                    client_socket.sendall(data.encode())
+                    time.sleep(2)
+
+                iteration_count += 1
+                time.sleep(2)
+
+    except Exception as e:
+        if connected:
+            print(f"Error: {e}")
+
+def main():
+    """Main function to initialize the client GUI and start the client."""
+    client_gui = ClientGUI()
+    threading.Thread(target=start_client, args=(client_gui,), daemon=True).start()
+    update_gui(client_gui)
+    client_gui.window.close()
+
+if __name__ == "__main__":
+    main()
+
