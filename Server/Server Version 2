@@ -1,0 +1,59 @@
+# Daniel Micallef Project 2. Server.
+# TPRG2131 Fall 2023
+# Produced for Phil J (Fall 2023)
+# December 14th, 2023
+
+import json
+import socket
+import threading
+import time
+import PySimpleGUI as sg
+
+def process_json_data(json_data, server_gui):
+
+    try:
+        data = json.loads(json_data)
+
+        server_gui.window["info_text"].print(f"Iteration {data['iteration_count']}: Core Temperature: {data['core_temperature']}°C")
+        server_gui.window["info_text"].print(f"Core Voltage: {data['core_voltage']}V")
+        server_gui.window["info_text"].print(f"GPU Temperature: {data['gpu_temperature']}°C")
+        server_gui.window["info_text"].print(f"CPU Temperature: {data['cpu_temperature']}°C")
+        server_gui.window["info_text"].print(f"CPU Voltage: {data['cpu_voltage']}V")
+        server_gui.window["info_text"].print(f"Memory Temperature: {data['memory_temperature']}°C")
+
+        server_gui.window["led_label"].update("LED: ✔")
+        time.sleep(1)  
+
+        server_gui.window["led_label"].update("LED: ❌")
+
+    except Exception as e:
+        server_gui.window["info_text"].print(f"Error processing JSON data: {e}")
+
+def update_gui(server_gui):
+    while True:
+        event, values = server_gui.window.read(timeout=1000)
+        if event == sg.WIN_CLOSED or event == "Exit":
+            break
+
+        if server_gui.connection_established:
+            server_gui.window["status_label"].update("Connection Status: Connected")
+        else:
+            server_gui.window["status_label"].update("Connection Status: Not Connected")
+
+def create_gui():
+    sg.theme('Default1')
+
+    layout = [
+        [sg.Text("Connection Status: Not Connected", key="status_label")],
+        [sg.Text("LED: ❌", key="led_label")],
+        [sg.Multiline(size=(50, 10), key="info_text")],
+        [sg.Button("Exit")]
+    ]
+
+    return sg.Window("Server GUI", layout, finalize=True)
+
+class ServerGUI:
+    def __init__(self):
+        self.window = create_gui()
+        self.connection_established = False
+        self.led_on = False
